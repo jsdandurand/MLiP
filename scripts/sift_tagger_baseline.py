@@ -62,6 +62,50 @@ EXPECTED = {
 }
 EXPECTED_N = {"train": 18826, "val": 3696, "test": 1690}
 
+# sidewalk-data-2. Fit on the two train splits only. pitt-val is counted and
+# unused. Original no_obstacles and Crosswalk are excluded. The manual-collection
+# null class is scored on pitt-test as clear, but it has no training images, so
+# it does not get a prototype. The only leakage-free clear prototype is CurbRamp.
+DATA2_TRAIN_SPLITS = ("other-cities-train", "pitt-train")
+DATA2_EVAL_SPLIT = "pitt-test"
+DATA2_HELD_OUT = ("pitt-val",)
+DATA2_FIT = ("CurbRamp", "Obstacle", "SurfaceProblem")
+DATA2_TEST = ("CurbRamp", "Obstacle", "SurfaceProblem", "no_obstacles_manual_collection")
+DATA2_HAZARD = ("Obstacle", "SurfaceProblem")
+DATA2_CLEAR = ("CurbRamp",)
+DATA2_EXPECTED = {
+    "other-cities-train": {
+        "Crosswalk": 1570,
+        "CurbRamp": 10096,
+        "Obstacle": 2376,
+        "SurfaceProblem": 8521,
+        "no_obstacles": 349,
+    },
+    "pitt-train": {
+        "Crosswalk": 34,
+        "CurbRamp": 457,
+        "Obstacle": 39,
+        "SurfaceProblem": 389,
+        "no_obstacles": 80,
+    },
+    "pitt-val": {
+        "Crosswalk": 11,
+        "CurbRamp": 152,
+        "Obstacle": 14,
+        "SurfaceProblem": 124,
+        "no_obstacles": 31,
+        "no_obstacles_manual_collection": 50,
+    },
+    "pitt-test": {
+        "Crosswalk": 12,
+        "CurbRamp": 152,
+        "Obstacle": 16,
+        "SurfaceProblem": 130,
+        "no_obstacles": 20,
+        "no_obstacles_manual_collection": 50,
+    },
+}
+
 
 def city_of(filename: str, label: str) -> str | None:
     stem = filename.rsplit(".", 1)[0]
@@ -553,6 +597,313 @@ def public_audit(audit_result: dict) -> dict:
     }
 
 
+def load_data2_split(data_dir: str, split: str) -> list[dict]:
+    rows = load_csv(os.path.join(data_dir, f"{split}.csv"))
+    expected = DATA2_EXPECTED[split]
+    by_class = dict(Counter(r["class"] for r in rows))
+    if by_class != expected or len(rows) != sum(expected.values()):
+        raise SystemExit(
+            f"{split} counts {by_class} n={len(rows)} do not match the data-2 table {expected}"
+        )
+    for i, row in enumerate(rows, start=1):
+        row["csv_row"] = i
+        if row["split"] != split:
+            raise SystemExit(f"{split}.csv row {i} has split {row['split']}")
+        parts = row["image_path"].split("/")
+        if parts != [split, row["class"], row["filename"]]:
+            raise SystemExit(f"bad image_path on {split} row {i}: {row['image_path']}")
+        path = os.path.join(data_dir, row["image_path"])
+        if not os.path.isfile(path) or os.path.getsize(path) == 0:
+            raise SystemExit(f"missing image {path}")
+    return rows
+
+
+def data2_items(rows: list[dict], data_dir: str, role: str, train_cap: int, codebook_n: int) -> tuple[list[dict], dict]:
+    allowed = DATA2_FIT if role == "train" else DATA2_TEST
+    kept = [r for r in rows if r["class"] in allowed]
+    by_label = {label: [r for r in kept if r["class"] == label] for label in allowed}
+    items = []
+    selection = {}
+    if role == "train":
+        for label in DATA2_FIT:
+            pool = by_label[label]
+            rng = random.Random(f"sift-tagger-v1-{label}")
+            order = list(pool)
+            rng.shuffle(order)
+            used_all = len(order) <= train_cap
+            chosen = order if used_all else order[:train_cap]
+            n_codebook = min(codebook_n, len(chosen))
+            names = []
+            for i, row in enumerate(chosen):
+                names.append(row["filename"])
+                items.append(
+                    {
+                        "filename": row["filename"],
+                        "label": label,
+                        "split": row["split"],
+                        "csv_row": row["csv_row"],
+                        "image_path": row["image_path"],
+                        "path": os.path.join(data_dir, row["image_path"]),
+                        "role": "train",
+                        "in_codebook": i < n_codebook,
+                    }
+                )
+            selection[label] = {
+                "n_train_available": len(pool),
+                "n_train_used": len(chosen),
+                "used_all_train_images": used_all,
+                "n_codebook": n_codebook,
+                "by_split": dict(Counter(r["split"] for r in chosen)),
+                "seed": f"sift-tagger-v1-{label}",
+                "pool_order": "other-cities-train.csv then pitt-train.csv, each in file order, then shuffle",
+                "filename_sha256": hashlib.sha256("\n".join(names).encode()).hexdigest(),
+            }
+    else:
+        for row in kept:
+            items.append(
+                {
+                    "filename": row["filename"],
+                    "label": row["class"],
+                    "split": row["split"],
+                    "csv_row": row["csv_row"],
+                    "image_path": row["image_path"],
+                    "path": os.path.join(data_dir, row["image_path"]),
+                    "role": "test",
+                    "in_codebook": False,
+                }
+            )
+    return items, selection
+
+
+def rank_hazard(records: list[dict], protos: dict[str, np.ndarray]) -> list[dict]:
+    scored = []
+    for rec in records:
+        if rec["role"] != "test":
+            continue
+        row = {
+            "filename": rec["filename"],
+            "image_path": rec["image_path"],
+            "csv_row": rec["csv_row"],
+            "label": rec["label"],
+            "hazard": int(rec["label"] in DATA2_HAZARD),
+            "n_desc": rec["n_desc"],
+        }
+        if rec["hist"] is None:
+            row.update(
+                {
+                    "score": None,
+                    "d_clear": None,
+                    "d_hazard": None,
+                    "abstain": True,
+                }
+            )
+            for label in DATA2_FIT:
+                row[f"d_{label}"] = None
+        else:
+            dists = {label: chi2(rec["hist"], protos[label]) for label in DATA2_FIT}
+            d_clear = min(dists[label] for label in DATA2_CLEAR)
+            d_hazard = min(dists[label] for label in DATA2_HAZARD)
+            row.update(
+                {
+                    "score": d_clear - d_hazard,
+                    "d_clear": d_clear,
+                    "d_hazard": d_hazard,
+                    "abstain": False,
+                }
+            )
+            for label in DATA2_FIT:
+                row[f"d_{label}"] = dists[label]
+        scored.append(row)
+    scored.sort(key=lambda r: (r["score"] is None, 0.0 if r["score"] is None else -r["score"], r["filename"], r["csv_row"]))
+    for i, row in enumerate(scored, start=1):
+        row["rank"] = i
+    return scored
+
+
+def cut_metrics(ranked: list[dict], k: int, h: int) -> dict:
+    if k < 1 or k > len(ranked):
+        raise SystemExit(f"k={k} is outside 1..{len(ranked)}")
+    top = ranked[:k]
+    tp = sum(row["hazard"] for row in top)
+    cutoff = top[-1]["score"]
+    nxt = ranked[k]["score"] if k < len(ranked) else None
+    tied = cutoff is not None and nxt is not None and cutoff == nxt
+    return {
+        "k": k,
+        "tp": tp,
+        "fn": h - tp,
+        "recall": f"{tp}/{h}",
+        "precision": f"{tp}/{k}",
+        "random_expected_recall": f"{k}/{len(ranked)}",
+        "cutoff_score": cutoff,
+        "next_score": nxt,
+        "cutoff_tied_with_next": tied,
+    }
+
+
+def run_data2(args) -> None:
+    t0 = time.time()
+    version = check_sift()
+    same = np.array([0.25, 0.75], dtype=np.float64)
+    other = np.array([0.75, 0.25], dtype=np.float64)
+    if chi2(same, same) != 0.0 or not np.isclose(chi2(same, other), chi2(other, same)) or chi2(same, other) <= 0.0:
+        raise SystemExit("chi-square distance failed a sanity check")
+    if args.train_cap != TRAIN_CAP or args.codebook_per_class != CODEBOOK_PER_CLASS or args.words != N_WORDS:
+        raise SystemExit("data2 run keeps the 500/200/200 method; do not override those caps")
+    print(f"SIFT_create ok, cv2 {version}", flush=True)
+    os.makedirs(args.out_dir, exist_ok=True)
+
+    loaded = {}
+    for split in DATA2_TRAIN_SPLITS + DATA2_HELD_OUT + (DATA2_EVAL_SPLIT,):
+        loaded[split] = load_data2_split(args.data_dir, split)
+        print(f"count {split}: n {len(loaded[split])} classes {dict(Counter(r['class'] for r in loaded[split]))}", flush=True)
+
+    names = {split: [r["filename"] for r in rows] for split, rows in loaded.items()}
+    for split, group in names.items():
+        if len(group) != len(set(group)):
+            raise SystemExit(f"duplicate filenames inside {split}")
+    train_names = set(names["other-cities-train"]) | set(names["pitt-train"])
+    if train_names & set(names["pitt-test"]) or train_names & set(names["pitt-val"]):
+        raise SystemExit("filename leak between a train split and pitt-val or pitt-test")
+    if set(names["pitt-val"]) & set(names["pitt-test"]):
+        raise SystemExit("filename overlap between pitt-val and pitt-test")
+
+    train_items, selection = data2_items(sum((loaded[s] for s in DATA2_TRAIN_SPLITS), []), args.data_dir, "train", args.train_cap, args.codebook_per_class)
+    test_items, _ = data2_items(loaded[DATA2_EVAL_SPLIT], args.data_dir, "test", args.train_cap, args.codebook_per_class)
+    for it in train_items:
+        folder = it["image_path"].split("/")
+        if folder[0] not in DATA2_TRAIN_SPLITS or folder[1] not in DATA2_FIT:
+            raise SystemExit(f"train item is outside the fit splits or classes: {it['image_path']}")
+    for it in test_items:
+        folder = it["image_path"].split("/")
+        if folder[0] != DATA2_EVAL_SPLIT or folder[1] not in DATA2_TEST:
+            raise SystemExit(f"test item is outside pitt-test scored classes: {it['image_path']}")
+    n_manual = sum(1 for it in test_items if it["label"] == "no_obstacles_manual_collection")
+    n_test = len(test_items)
+    h = sum(1 for it in test_items if it["label"] in DATA2_HAZARD)
+    if n_test != 348 or h != 146 or n_manual != 50:
+        raise SystemExit(f"scored test is N={n_test} H={h} manual={n_manual}, expected N=348 H=146 manual=50")
+    print(f"scored test N {n_test} H {h}", flush=True)
+    for label, info in selection.items():
+        print(
+            f"select {label}: available {info['n_train_available']} used {info['n_train_used']} "
+            f"codebook {info['n_codebook']} by_split {info['by_split']}",
+            flush=True,
+        )
+
+    records = extract_all(train_items + test_items, args.workers)
+    vocab = build_vocabulary(records, args.words)
+    l1_histograms(records, vocab)
+    for rec in records:
+        rec.pop("desc", None)
+    bow_check = verify_bow_extractor(records, vocab)
+    print(f"bow extractor check {bow_check}", flush=True)
+    protos = prototypes(records, list(DATA2_FIT))
+    ranked = rank_hazard(records, protos)
+    abstain = sum(1 for row in ranked if row["abstain"])
+    # 0.12 * 348 = 4176/100 = 41.76 exactly. Integer arithmetic avoids a binary float.
+    raw_num, raw_den = 12 * n_test, 100
+    if raw_num != 4176:
+        raise SystemExit(f"expected 0.12*348 = 4176/100, got {raw_num}/{raw_den}")
+    k_floor = raw_num // raw_den
+    k_ceil = (raw_num + raw_den - 1) // raw_den
+    k_nearest = (raw_num + raw_den // 2) // raw_den
+    if (k_floor, k_ceil, k_nearest) != (41, 42, 42):
+        raise SystemExit(f"unexpected top-12% rounding floor {k_floor} ceil {k_ceil} nearest {k_nearest}")
+    cuts = {
+        "recall_at_41": cut_metrics(ranked, 41, h),
+        "recall_at_42": cut_metrics(ranked, 42, h),
+    }
+    for name, cut in cuts.items():
+        print(
+            f"{name}: tp {cut['tp']}/{h} recall {cut['recall']} precision {cut['precision']} "
+            f"k {cut['k']} tied_cutoff {cut['cutoff_tied_with_next']}",
+            flush=True,
+        )
+
+    def num(value):
+        if value is None:
+            return ""
+        if isinstance(value, float):
+            return format(value, ".17g")
+        return value
+
+    csv_path = os.path.join(args.out_dir, "sift_recall_at_budget_scores.csv")
+    fields = [
+        "rank", "filename", "csv_row", "label", "hazard", "score",
+        "d_clear", "d_hazard", "d_CurbRamp", "d_Obstacle", "d_SurfaceProblem",
+        "n_desc", "abstain", "image_path",
+    ]
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for row in ranked:
+            writer.writerow({key: num(row.get(key)) for key in fields})
+
+    payload = {
+        "cv2": version,
+        "seconds": round(time.time() - t0, 1),
+        "data_dir": args.data_dir,
+        "layout": "sidewalk-data-2",
+        "train_splits": list(DATA2_TRAIN_SPLITS),
+        "eval_split": DATA2_EVAL_SPLIT,
+        "held_out_unused": list(DATA2_HELD_OUT),
+        "fit_classes": list(DATA2_FIT),
+        "test_classes": list(DATA2_TEST),
+        "excluded_from_fit_and_score": ["Crosswalk", "no_obstacles"],
+        "hazard_classes": list(DATA2_HAZARD),
+        "clear_prototype_classes": list(DATA2_CLEAR),
+        "clear_test_negatives": ["CurbRamp", "no_obstacles_manual_collection"],
+        "null_prototype": "none; no_obstacles_manual_collection has 0 training images and pitt-val/pitt-test were not used to build one",
+        "N": n_test,
+        "H": h,
+        "manual_collection_in_test": n_manual,
+        "prevalence": f"{h}/{n_test}",
+        "abstain": abstain,
+        "score": "chi-square to the CurbRamp prototype minus min chi-square to {Obstacle, SurfaceProblem}",
+        "sort": "score descending; abstentions last; ties by filename ascending then pitt-test.csv row ascending",
+        "top12_rounding": {
+            "expression": "0.12*348 = 41.76",
+            "floor": 41,
+            "ceil": 42,
+            "nearest": 42,
+            "headline_k": 41,
+        },
+        "cuts": cuts,
+        "class_counts": {split: DATA2_EXPECTED[split] for split in loaded},
+        "not_opened": {
+            "pitt-val": "entire split, including its 50 manual-collection images",
+            "original_no_obstacles": {split: DATA2_EXPECTED[split].get("no_obstacles", 0) for split in loaded},
+            "Crosswalk": {split: DATA2_EXPECTED[split].get("Crosswalk", 0) for split in loaded},
+        },
+        "selection": selection,
+        "method": {
+            "grid_step": GRID_STEP,
+            "cap_sparse": CAP_SPARSE,
+            "cap_dense": CAP_DENSE,
+            "desc_cap": DESC_CAP,
+            "min_descriptors": MIN_DESCRIPTORS,
+            "words": int(vocab.shape[0]),
+            "train_cap": args.train_cap,
+            "codebook_per_class": args.codebook_per_class,
+            "chi2": "0.5 * sum (p-q)^2 / (p+q) over bins with p+q > 0",
+            "kmeans": "cv2.BOWKMeansTrainer attempts=1 PP centers, 20 iter, eps 0.1, RNG seed 0",
+            "val_used_for_fit_or_score": False,
+            "manual_collection_in_codebook_or_prototypes": False,
+            "original_no_obstacles_used": False,
+        },
+        "bow_extractor_check": bow_check,
+        "scores_csv": csv_path,
+    }
+    out_json = os.path.join(args.out_dir, "sift_recall_at_budget.json")
+    with open(out_json, "w") as f:
+        json.dump(payload, f, indent=2)
+        f.write("\n")
+    print(f"wrote {out_json}", flush=True)
+    print(f"wrote {csv_path}", flush=True)
+    print(f"seconds {payload['seconds']}", flush=True)
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--data-dir", default="/data/datasets/sidewalk-data")
@@ -561,7 +912,11 @@ def main() -> None:
     p.add_argument("--codebook-per-class", type=int, default=CODEBOOK_PER_CLASS)
     p.add_argument("--words", type=int, default=N_WORDS)
     p.add_argument("--workers", type=int, default=48)
+    p.add_argument("--layout", choices=("legacy", "data2"), default="legacy")
     args = p.parse_args()
+    if args.layout == "data2":
+        run_data2(args)
+        return
 
     t0 = time.time()
     version = check_sift()

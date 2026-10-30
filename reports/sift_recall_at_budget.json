@@ -1,93 +1,188 @@
 {
-  "status": "not_computed",
-  "reason": "Documented test split is 1690 images, not 340. Live test.csv on sidewalk-cpu was not read because SSH offered only publickey and this environment has no key. Per-image chi-square distances are not in reports/sift_tagger_baseline.json, so the previous hard labels cannot be re-ranked.",
-  "recall_at_41": null,
-  "true_hazards_in_top_k": null,
-  "vm": {
-    "name": "sidewalk-cpu",
-    "ip": "20.69.232.144",
-    "checked_on": "2026-10-30",
-    "port_22": "open",
-    "sshd": "OpenSSH_8.9p1 Ubuntu-3ubuntu0.18",
-    "auth_offered": "publickey",
-    "login": "denied",
-    "device_auth_started": false,
-    "power_action": "none",
-    "split_files_inspected": false
+  "cv2": "4.12.0",
+  "seconds": 20.6,
+  "data_dir": "/data/datasets/sidewalk-data-2",
+  "layout": "sidewalk-data-2",
+  "train_splits": [
+    "other-cities-train",
+    "pitt-train"
+  ],
+  "eval_split": "pitt-test",
+  "held_out_unused": [
+    "pitt-val"
+  ],
+  "fit_classes": [
+    "CurbRamp",
+    "Obstacle",
+    "SurfaceProblem"
+  ],
+  "test_classes": [
+    "CurbRamp",
+    "Obstacle",
+    "SurfaceProblem",
+    "no_obstacles_manual_collection"
+  ],
+  "excluded_from_fit_and_score": [
+    "Crosswalk",
+    "no_obstacles"
+  ],
+  "hazard_classes": [
+    "Obstacle",
+    "SurfaceProblem"
+  ],
+  "clear_prototype_classes": [
+    "CurbRamp"
+  ],
+  "clear_test_negatives": [
+    "CurbRamp",
+    "no_obstacles_manual_collection"
+  ],
+  "null_prototype": "none; no_obstacles_manual_collection has 0 training images and pitt-val/pitt-test were not used to build one",
+  "N": 348,
+  "H": 146,
+  "manual_collection_in_test": 50,
+  "prevalence": "146/348",
+  "abstain": 0,
+  "score": "chi-square to the CurbRamp prototype minus min chi-square to {Obstacle, SurfaceProblem}",
+  "sort": "score descending; abstentions last; ties by filename ascending then pitt-test.csv row ascending",
+  "top12_rounding": {
+    "expression": "0.12*348 = 41.76",
+    "floor": 41,
+    "ceil": 42,
+    "nearest": 42,
+    "headline_k": 41
   },
-  "provenance": {
-    "split_table": "Aditya-Katkuri/MLiP main 45e3d61 docs/sidewalk-data/README.md (2026-10-06)",
-    "test_audit_json": "jsdandurand/MLiP sift-tagger 8cc5d79 reports/sift_tagger_baseline.json",
-    "data_dir_named_in_audit": "/data/datasets/sidewalk-data",
-    "audit_flags": {"table_match": true, "disk_match": true, "test_city": "pittsburgh", "test_n": 1690},
-    "hf_dataset": "projectsidewalk/sidewalk-tagger-ai-validated",
-    "hf_revision_pinned_in_readme": "6e3a116a3c228dd35bcd72f6e5fb921f6ebb6a50",
-    "note": "Upstream README says the 500 train no_obstacles images did not change val.csv or test.csv."
-  },
-  "documented_test_counts": {
-    "Crosswalk": 57,
-    "CurbRamp": 761,
-    "Obstacle": 59,
-    "SurfaceProblem": 609,
-    "no_obstacles": 204,
-    "total": 1690
-  },
-  "class_definition": {
-    "hazard": ["Obstacle", "SurfaceProblem"],
-    "clear_if_in_scored_set": ["CurbRamp", "no_obstacles"],
-    "outside_binary": ["Crosswalk"],
-    "H_from_documented_counts": 668,
-    "H_fraction": "668/1690 of the full test file; 668/1633 if Crosswalk is left unscored"
-  },
-  "subset_340": {
-    "exact_union_of_test_classes": false,
-    "nearest_smaller_union": {
-      "n": 320,
-      "classes": ["Crosswalk", "Obstacle", "no_obstacles"]
+  "cuts": {
+    "recall_at_41": {
+      "k": 41,
+      "tp": 22,
+      "fn": 124,
+      "recall": "22/146",
+      "precision": "22/41",
+      "random_expected_recall": "41/348",
+      "cutoff_score": 0.021842939407586304,
+      "next_score": 0.021679685210578392,
+      "cutoff_tied_with_next": false
+    },
+    "recall_at_42": {
+      "k": 42,
+      "tp": 22,
+      "fn": 124,
+      "recall": "22/146",
+      "precision": "22/42",
+      "random_expected_recall": "42/348",
+      "cutoff_score": 0.021679685210578392,
+      "next_score": 0.021251259175629422,
+      "cutoff_tied_with_next": false
     }
   },
-  "budget": {
-    "unaudited_km": 494,
-    "unaudited_m": 494000,
-    "panoramas": "494000/25 = 19760",
-    "inference_images": "19760*6 = 118560",
-    "worker_images_per_week": 14400,
-    "fraction": "14400/118560 = 30/247 = 0.12145748987854251",
-    "percent_four_decimals": 12.1457
+  "class_counts": {
+    "other-cities-train": {
+      "Crosswalk": 1570,
+      "CurbRamp": 10096,
+      "Obstacle": 2376,
+      "SurfaceProblem": 8521,
+      "no_obstacles": 349
+    },
+    "pitt-train": {
+      "Crosswalk": 34,
+      "CurbRamp": 457,
+      "Obstacle": 39,
+      "SurfaceProblem": 389,
+      "no_obstacles": 80
+    },
+    "pitt-val": {
+      "Crosswalk": 11,
+      "CurbRamp": 152,
+      "Obstacle": 14,
+      "SurfaceProblem": 124,
+      "no_obstacles": 31,
+      "no_obstacles_manual_collection": 50
+    },
+    "pitt-test": {
+      "Crosswalk": 12,
+      "CurbRamp": 152,
+      "Obstacle": 16,
+      "SurfaceProblem": 130,
+      "no_obstacles": 20,
+      "no_obstacles_manual_collection": 50
+    }
   },
-  "rounding_if_n_were_340": {
-    "raw_12_percent": "0.12*340 = 40.8",
-    "ceil": 41,
-    "floor": 40,
-    "half_up": 41,
-    "k41_over_n": "41/340 = 0.12058823529411765",
-    "unrounded_deployment_rate_times_340": 41.29554655870445,
-    "ceil_of_unrounded": 42,
-    "same_cut_for_recall_at_41_and_ceil_top12": true,
-    "measured": false
+  "not_opened": {
+    "pitt-val": "entire split, including its 50 manual-collection images",
+    "original_no_obstacles": {
+      "other-cities-train": 349,
+      "pitt-train": 80,
+      "pitt-val": 31,
+      "pitt-test": 20
+    },
+    "Crosswalk": {
+      "other-cities-train": 1570,
+      "pitt-train": 34,
+      "pitt-val": 11,
+      "pitt-test": 12
+    }
   },
-  "cut_if_documented_scored_set_were_current": {
-    "note": "Cut size only. Recall numerator was not measured. Disk was not re-listed.",
-    "scored_classes": ["CurbRamp", "Obstacle", "SurfaceProblem", "no_obstacles"],
-    "N": 1633,
-    "H": 668,
-    "prevalence": "668/1633",
-    "k_ceil_top12": 196,
-    "k_over_n": "196/1633",
-    "raw_12_percent": 195.96
+  "selection": {
+    "CurbRamp": {
+      "n_train_available": 10553,
+      "n_train_used": 500,
+      "used_all_train_images": false,
+      "n_codebook": 200,
+      "by_split": {
+        "other-cities-train": 470,
+        "pitt-train": 30
+      },
+      "seed": "sift-tagger-v1-CurbRamp",
+      "pool_order": "other-cities-train.csv then pitt-train.csv, each in file order, then shuffle",
+      "filename_sha256": "7caaeb16edbf437837442466607c78619074d3029fc053fdeba0df69c2c2a6ac"
+    },
+    "Obstacle": {
+      "n_train_available": 2415,
+      "n_train_used": 500,
+      "used_all_train_images": false,
+      "n_codebook": 200,
+      "by_split": {
+        "other-cities-train": 493,
+        "pitt-train": 7
+      },
+      "seed": "sift-tagger-v1-Obstacle",
+      "pool_order": "other-cities-train.csv then pitt-train.csv, each in file order, then shuffle",
+      "filename_sha256": "1480f7d526d210ccecaf86eb225fc59238d97562c8885d868fc8096c6fd36289"
+    },
+    "SurfaceProblem": {
+      "n_train_available": 8910,
+      "n_train_used": 500,
+      "used_all_train_images": false,
+      "n_codebook": 200,
+      "by_split": {
+        "other-cities-train": 484,
+        "pitt-train": 16
+      },
+      "seed": "sift-tagger-v1-SurfaceProblem",
+      "pool_order": "other-cities-train.csv then pitt-train.csv, each in file order, then shuffle",
+      "filename_sha256": "b55a01fd19738c3408576cc75519223e63b057151020eaa66442ed9fd4bd3fb3"
+    }
   },
-  "score": {
-    "formula": "min symmetric-chi-square distance to clear prototypes minus min distance to hazard prototypes",
-    "larger_means": "more hazard-like",
-    "sort": "descending",
-    "tie_policy": "filename ascending, then test.csv row order",
-    "k_rule": "41 only if the assignment fixes N=340; otherwise ceil(0.12*N)",
-    "applied": false
+  "method": {
+    "grid_step": 32,
+    "cap_sparse": 40,
+    "cap_dense": 40,
+    "desc_cap": 80,
+    "min_descriptors": 5,
+    "words": 200,
+    "train_cap": 500,
+    "codebook_per_class": 200,
+    "chi2": "0.5 * sum (p-q)^2 / (p+q) over bins with p+q > 0",
+    "kmeans": "cv2.BOWKMeansTrainer attempts=1 PP centers, 20 iter, eps 0.1, RNG seed 0",
+    "val_used_for_fit_or_score": false,
+    "manual_collection_in_codebook_or_prototypes": false,
+    "original_no_obstacles_used": false
   },
-  "committed_hard_label_run": {
-    "commit": "8cc5d79",
-    "scored_classes": ["CurbRamp", "Obstacle", "SurfaceProblem"],
-    "scored_test_n": 1429,
-    "distances_saved": false
-  }
+  "bow_extractor_check": {
+    "images_checked": 5,
+    "max_abs_l1_diff": 0.02500000151339915
+  },
+  "scores_csv": "reports/sift_recall_at_budget_scores.csv",
+  "scores_csv_vm": "/mnt/scratch/sift-tagger/out-data2/sift_recall_at_budget_scores.csv"
 }
