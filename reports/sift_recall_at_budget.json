@@ -1,0 +1,93 @@
+{
+  "status": "not_computed",
+  "reason": "Documented test split is 1690 images, not 340. Live test.csv on sidewalk-cpu was not read because SSH offered only publickey and this environment has no key. Per-image chi-square distances are not in reports/sift_tagger_baseline.json, so the previous hard labels cannot be re-ranked.",
+  "recall_at_41": null,
+  "true_hazards_in_top_k": null,
+  "vm": {
+    "name": "sidewalk-cpu",
+    "ip": "20.69.232.144",
+    "checked_on": "2026-10-30",
+    "port_22": "open",
+    "sshd": "OpenSSH_8.9p1 Ubuntu-3ubuntu0.18",
+    "auth_offered": "publickey",
+    "login": "denied",
+    "device_auth_started": false,
+    "power_action": "none",
+    "split_files_inspected": false
+  },
+  "provenance": {
+    "split_table": "Aditya-Katkuri/MLiP main 45e3d61 docs/sidewalk-data/README.md (2026-10-06)",
+    "test_audit_json": "jsdandurand/MLiP sift-tagger 8cc5d79 reports/sift_tagger_baseline.json",
+    "data_dir_named_in_audit": "/data/datasets/sidewalk-data",
+    "audit_flags": {"table_match": true, "disk_match": true, "test_city": "pittsburgh", "test_n": 1690},
+    "hf_dataset": "projectsidewalk/sidewalk-tagger-ai-validated",
+    "hf_revision_pinned_in_readme": "6e3a116a3c228dd35bcd72f6e5fb921f6ebb6a50",
+    "note": "Upstream README says the 500 train no_obstacles images did not change val.csv or test.csv."
+  },
+  "documented_test_counts": {
+    "Crosswalk": 57,
+    "CurbRamp": 761,
+    "Obstacle": 59,
+    "SurfaceProblem": 609,
+    "no_obstacles": 204,
+    "total": 1690
+  },
+  "class_definition": {
+    "hazard": ["Obstacle", "SurfaceProblem"],
+    "clear_if_in_scored_set": ["CurbRamp", "no_obstacles"],
+    "outside_binary": ["Crosswalk"],
+    "H_from_documented_counts": 668,
+    "H_fraction": "668/1690 of the full test file; 668/1633 if Crosswalk is left unscored"
+  },
+  "subset_340": {
+    "exact_union_of_test_classes": false,
+    "nearest_smaller_union": {
+      "n": 320,
+      "classes": ["Crosswalk", "Obstacle", "no_obstacles"]
+    }
+  },
+  "budget": {
+    "unaudited_km": 494,
+    "unaudited_m": 494000,
+    "panoramas": "494000/25 = 19760",
+    "inference_images": "19760*6 = 118560",
+    "worker_images_per_week": 14400,
+    "fraction": "14400/118560 = 30/247 = 0.12145748987854251",
+    "percent_four_decimals": 12.1457
+  },
+  "rounding_if_n_were_340": {
+    "raw_12_percent": "0.12*340 = 40.8",
+    "ceil": 41,
+    "floor": 40,
+    "half_up": 41,
+    "k41_over_n": "41/340 = 0.12058823529411765",
+    "unrounded_deployment_rate_times_340": 41.29554655870445,
+    "ceil_of_unrounded": 42,
+    "same_cut_for_recall_at_41_and_ceil_top12": true,
+    "measured": false
+  },
+  "cut_if_documented_scored_set_were_current": {
+    "note": "Cut size only. Recall numerator was not measured. Disk was not re-listed.",
+    "scored_classes": ["CurbRamp", "Obstacle", "SurfaceProblem", "no_obstacles"],
+    "N": 1633,
+    "H": 668,
+    "prevalence": "668/1633",
+    "k_ceil_top12": 196,
+    "k_over_n": "196/1633",
+    "raw_12_percent": 195.96
+  },
+  "score": {
+    "formula": "min symmetric-chi-square distance to clear prototypes minus min distance to hazard prototypes",
+    "larger_means": "more hazard-like",
+    "sort": "descending",
+    "tie_policy": "filename ascending, then test.csv row order",
+    "k_rule": "41 only if the assignment fixes N=340; otherwise ceil(0.12*N)",
+    "applied": false
+  },
+  "committed_hard_label_run": {
+    "commit": "8cc5d79",
+    "scored_classes": ["CurbRamp", "Obstacle", "SurfaceProblem"],
+    "scored_test_n": 1429,
+    "distances_saved": false
+  }
+}
