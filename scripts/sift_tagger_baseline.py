@@ -62,16 +62,14 @@ EXPECTED = {
 }
 EXPECTED_N = {"train": 18826, "val": 3696, "test": 1690}
 
-# sidewalk-data-2. Fit on the two train splits only. pitt-val is counted and
-# unused. Crosswalk is excluded. Original no_obstacles is a clear class and has
-# training images, so it gets a prototype. The manual-collection null class is
-# scored on pitt-test as clear. It has no training images, so it does not get
-# its own prototype and is not substituted with validation or test images.
+# Processed sidewalk-data-2. Null folders are already merged into no_obstacles
+# and every image is resized. Fit on the two train splits only. pitt-val is
+# counted and unused. Crosswalk is excluded. no_obstacles is a clear class.
 DATA2_TRAIN_SPLITS = ("other-cities-train", "pitt-train")
 DATA2_EVAL_SPLIT = "pitt-test"
 DATA2_HELD_OUT = ("pitt-val",)
 DATA2_FIT = ("CurbRamp", "Obstacle", "SurfaceProblem", "no_obstacles")
-DATA2_TEST = ("CurbRamp", "Obstacle", "SurfaceProblem", "no_obstacles", "no_obstacles_manual_collection")
+DATA2_TEST = ("CurbRamp", "Obstacle", "SurfaceProblem", "no_obstacles")
 DATA2_HAZARD = ("Obstacle", "SurfaceProblem")
 DATA2_CLEAR = ("CurbRamp", "no_obstacles")
 DATA2_EXPECTED = {
@@ -94,16 +92,14 @@ DATA2_EXPECTED = {
         "CurbRamp": 152,
         "Obstacle": 14,
         "SurfaceProblem": 124,
-        "no_obstacles": 31,
-        "no_obstacles_manual_collection": 50,
+        "no_obstacles": 81,
     },
     "pitt-test": {
         "Crosswalk": 12,
         "CurbRamp": 152,
         "Obstacle": 16,
         "SurfaceProblem": 130,
-        "no_obstacles": 20,
-        "no_obstacles_manual_collection": 50,
+        "no_obstacles": 70,
     },
 }
 
@@ -611,7 +607,9 @@ def load_data2_split(data_dir: str, split: str) -> list[dict]:
         if row["split"] != split:
             raise SystemExit(f"{split}.csv row {i} has split {row['split']}")
         parts = row["image_path"].split("/")
-        if parts != [split, row["class"], row["filename"]]:
+        stem_csv = os.path.splitext(row["filename"])[0]
+        stem_path = os.path.splitext(parts[2])[0] if len(parts) == 3 else ""
+        if len(parts) != 3 or parts[0] != split or parts[1] != row["class"] or stem_csv != stem_path:
             raise SystemExit(f"bad image_path on {split} row {i}: {row['image_path']}")
         path = os.path.join(data_dir, row["image_path"])
         if not os.path.isfile(path) or os.path.getsize(path) == 0:
@@ -779,14 +777,12 @@ def run_data2(args) -> None:
         folder = it["image_path"].split("/")
         if folder[0] != DATA2_EVAL_SPLIT or folder[1] not in DATA2_TEST:
             raise SystemExit(f"test item is outside pitt-test scored classes: {it['image_path']}")
-    n_manual = sum(1 for it in test_items if it["label"] == "no_obstacles_manual_collection")
     n_null = sum(1 for it in test_items if it["label"] == "no_obstacles")
     n_test = len(test_items)
     h = sum(1 for it in test_items if it["label"] in DATA2_HAZARD)
-    if n_test != 368 or h != 146 or n_manual != 50 or n_null != 20:
+    if n_test != 368 or h != 146 or n_null != 70:
         raise SystemExit(
-            f"scored test is N={n_test} H={h} null={n_null} manual={n_manual}, "
-            "expected N=368 H=146 null=20 manual=50"
+            f"scored test is N={n_test} H={h} null={n_null}, expected N=368 H=146 null=70"
         )
     print(f"scored test N {n_test} H {h}", flush=True)
     for label, info in selection.items():
@@ -859,12 +855,12 @@ def run_data2(args) -> None:
         "excluded_from_fit_and_score": ["Crosswalk"],
         "hazard_classes": list(DATA2_HAZARD),
         "clear_prototype_classes": list(DATA2_CLEAR),
-        "clear_test_negatives": ["CurbRamp", "no_obstacles", "no_obstacles_manual_collection"],
-        "null_prototype": "original no_obstacles training images only; manual collection has 0 training images and is scored as a clear negative",
+        "clear_test_negatives": ["CurbRamp", "no_obstacles"],
+        "null_prototype": "merged no_obstacles class; training prototype is the 429 original training nulls because manual screenshots exist only in pitt-val and pitt-test",
+        "preprocess": "bicubic resize to 224x224; no_obstacles_manual_collection merged into no_obstacles",
         "N": n_test,
         "H": h,
         "no_obstacles_in_test": n_null,
-        "manual_collection_in_test": n_manual,
         "prevalence": f"{h}/{n_test}",
         "abstain": abstain,
         "score": "min chi-square to {CurbRamp, no_obstacles} minus min chi-square to {Obstacle, SurfaceProblem}",
@@ -879,7 +875,7 @@ def run_data2(args) -> None:
         "cuts": cuts,
         "class_counts": {split: DATA2_EXPECTED[split] for split in loaded},
         "not_opened": {
-            "pitt-val": "entire split, including its 50 manual-collection images",
+            "pitt-val": "entire split, including its 81 merged no_obstacles images",
             "Crosswalk": {split: DATA2_EXPECTED[split].get("Crosswalk", 0) for split in loaded},
         },
         "selection": selection,

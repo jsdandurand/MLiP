@@ -1,7 +1,7 @@
 {
   "cv2": "4.12.0",
-  "seconds": 22.1,
-  "data_dir": "/data/datasets/sidewalk-data-2",
+  "seconds": 3.1,
+  "data_dir": "/data/datasets/proc-sidewalk-data-naive-merged-nulls",
   "layout": "sidewalk-data-2",
   "train_splits": [
     "other-cities-train",
@@ -21,8 +21,7 @@
     "CurbRamp",
     "Obstacle",
     "SurfaceProblem",
-    "no_obstacles",
-    "no_obstacles_manual_collection"
+    "no_obstacles"
   ],
   "excluded_from_fit_and_score": [
     "Crosswalk"
@@ -37,14 +36,13 @@
   ],
   "clear_test_negatives": [
     "CurbRamp",
-    "no_obstacles",
-    "no_obstacles_manual_collection"
+    "no_obstacles"
   ],
-  "null_prototype": "original no_obstacles training images only; manual collection has 0 training images and is scored as a clear negative",
+  "null_prototype": "merged no_obstacles class; training prototype is the 429 original training nulls because manual screenshots exist only in pitt-val and pitt-test",
+  "preprocess": "bicubic resize to 224x224; no_obstacles_manual_collection merged into no_obstacles",
   "N": 368,
   "H": 146,
-  "no_obstacles_in_test": 20,
-  "manual_collection_in_test": 50,
+  "no_obstacles_in_test": 70,
   "prevalence": "146/368",
   "abstain": 0,
   "score": "min chi-square to {CurbRamp, no_obstacles} minus min chi-square to {Obstacle, SurfaceProblem}",
@@ -59,35 +57,35 @@
   "cuts": {
     "recall_at_41": {
       "k": 41,
-      "tp": 22,
-      "fn": 124,
-      "recall": "22/146",
-      "precision": "22/41",
+      "tp": 32,
+      "fn": 114,
+      "recall": "32/146",
+      "precision": "32/41",
       "random_expected_recall": "41/368",
-      "cutoff_score": 0.021975708982989506,
-      "next_score": 0.02192667677243526,
+      "cutoff_score": 0.056995230974872024,
+      "next_score": 0.05680287688316543,
       "cutoff_tied_with_next": false
     },
     "recall_at_44": {
       "k": 44,
-      "tp": 24,
-      "fn": 122,
-      "recall": "24/146",
-      "precision": "24/44",
+      "tp": 35,
+      "fn": 111,
+      "recall": "35/146",
+      "precision": "35/44",
       "random_expected_recall": "44/368",
-      "cutoff_score": 0.021757455590940666,
-      "next_score": 0.021755632442145068,
+      "cutoff_score": 0.05571223525047697,
+      "next_score": 0.05536729338210755,
       "cutoff_tied_with_next": false
     },
     "recall_at_45": {
       "k": 45,
-      "tp": 25,
-      "fn": 121,
-      "recall": "25/146",
-      "precision": "25/45",
+      "tp": 35,
+      "fn": 111,
+      "recall": "35/146",
+      "precision": "35/45",
       "random_expected_recall": "45/368",
-      "cutoff_score": 0.021755632442145068,
-      "next_score": 0.021661096339746,
+      "cutoff_score": 0.05536729338210755,
+      "next_score": 0.055124046706789276,
       "cutoff_tied_with_next": false
     }
   },
@@ -111,20 +109,18 @@
       "CurbRamp": 152,
       "Obstacle": 14,
       "SurfaceProblem": 124,
-      "no_obstacles": 31,
-      "no_obstacles_manual_collection": 50
+      "no_obstacles": 81
     },
     "pitt-test": {
       "Crosswalk": 12,
       "CurbRamp": 152,
       "Obstacle": 16,
       "SurfaceProblem": 130,
-      "no_obstacles": 20,
-      "no_obstacles_manual_collection": 50
+      "no_obstacles": 70
     }
   },
   "not_opened": {
-    "pitt-val": "entire split, including its 50 manual-collection images",
+    "pitt-val": "entire split, including its 81 merged no_obstacles images",
     "Crosswalk": {
       "other-cities-train": 1570,
       "pitt-train": 34,
@@ -203,8 +199,8 @@
   },
   "bow_extractor_check": {
     "images_checked": 5,
-    "max_abs_l1_diff": 0.025
+    "max_abs_l1_diff": 0.012500000756699575
   },
   "scores_csv": "reports/sift_recall_at_budget_scores.csv",
-  "scores_csv_vm": "/mnt/scratch/sift-tagger/out-data2-nulls/sift_recall_at_budget_scores.csv"
+  "scores_csv_vm": "/mnt/scratch/sift-tagger/out-merged-nulls/sift_recall_at_budget_scores.csv"
 }
