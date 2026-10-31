@@ -63,16 +63,17 @@ EXPECTED = {
 EXPECTED_N = {"train": 18826, "val": 3696, "test": 1690}
 
 # sidewalk-data-2. Fit on the two train splits only. pitt-val is counted and
-# unused. Original no_obstacles and Crosswalk are excluded. The manual-collection
-# null class is scored on pitt-test as clear, but it has no training images, so
-# it does not get a prototype. The only leakage-free clear prototype is CurbRamp.
+# unused. Crosswalk is excluded. Original no_obstacles is a clear class and has
+# training images, so it gets a prototype. The manual-collection null class is
+# scored on pitt-test as clear. It has no training images, so it does not get
+# its own prototype and is not substituted with validation or test images.
 DATA2_TRAIN_SPLITS = ("other-cities-train", "pitt-train")
 DATA2_EVAL_SPLIT = "pitt-test"
 DATA2_HELD_OUT = ("pitt-val",)
-DATA2_FIT = ("CurbRamp", "Obstacle", "SurfaceProblem")
-DATA2_TEST = ("CurbRamp", "Obstacle", "SurfaceProblem", "no_obstacles_manual_collection")
+DATA2_FIT = ("CurbRamp", "Obstacle", "SurfaceProblem", "no_obstacles")
+DATA2_TEST = ("CurbRamp", "Obstacle", "SurfaceProblem", "no_obstacles", "no_obstacles_manual_collection")
 DATA2_HAZARD = ("Obstacle", "SurfaceProblem")
-DATA2_CLEAR = ("CurbRamp",)
+DATA2_CLEAR = ("CurbRamp", "no_obstacles")
 DATA2_EXPECTED = {
     "other-cities-train": {
         "Crosswalk": 1570,
@@ -779,10 +780,14 @@ def run_data2(args) -> None:
         if folder[0] != DATA2_EVAL_SPLIT or folder[1] not in DATA2_TEST:
             raise SystemExit(f"test item is outside pitt-test scored classes: {it['image_path']}")
     n_manual = sum(1 for it in test_items if it["label"] == "no_obstacles_manual_collection")
+    n_null = sum(1 for it in test_items if it["label"] == "no_obstacles")
     n_test = len(test_items)
     h = sum(1 for it in test_items if it["label"] in DATA2_HAZARD)
-    if n_test != 348 or h != 146 or n_manual != 50:
-        raise SystemExit(f"scored test is N={n_test} H={h} manual={n_manual}, expected N=348 H=146 manual=50")
+    if n_test != 368 or h != 146 or n_manual != 50 or n_null != 20:
+        raise SystemExit(
+            f"scored test is N={n_test} H={h} null={n_null} manual={n_manual}, "
+            "expected N=368 H=146 null=20 manual=50"
+        )
     print(f"scored test N {n_test} H {h}", flush=True)
     for label, info in selection.items():
         print(
@@ -801,18 +806,19 @@ def run_data2(args) -> None:
     protos = prototypes(records, list(DATA2_FIT))
     ranked = rank_hazard(records, protos)
     abstain = sum(1 for row in ranked if row["abstain"])
-    # 0.12 * 348 = 4176/100 = 41.76 exactly. Integer arithmetic avoids a binary float.
+    # 0.12 * 368 = 4416/100 = 44.16 exactly. Integer arithmetic avoids a binary float.
     raw_num, raw_den = 12 * n_test, 100
-    if raw_num != 4176:
-        raise SystemExit(f"expected 0.12*348 = 4176/100, got {raw_num}/{raw_den}")
+    if raw_num != 4416:
+        raise SystemExit(f"expected 0.12*368 = 4416/100, got {raw_num}/{raw_den}")
     k_floor = raw_num // raw_den
     k_ceil = (raw_num + raw_den - 1) // raw_den
     k_nearest = (raw_num + raw_den // 2) // raw_den
-    if (k_floor, k_ceil, k_nearest) != (41, 42, 42):
+    if (k_floor, k_ceil, k_nearest) != (44, 45, 44):
         raise SystemExit(f"unexpected top-12% rounding floor {k_floor} ceil {k_ceil} nearest {k_nearest}")
     cuts = {
         "recall_at_41": cut_metrics(ranked, 41, h),
-        "recall_at_42": cut_metrics(ranked, 42, h),
+        "recall_at_44": cut_metrics(ranked, 44, h),
+        "recall_at_45": cut_metrics(ranked, 45, h),
     }
     for name, cut in cuts.items():
         print(
@@ -831,7 +837,7 @@ def run_data2(args) -> None:
     csv_path = os.path.join(args.out_dir, "sift_recall_at_budget_scores.csv")
     fields = [
         "rank", "filename", "csv_row", "label", "hazard", "score",
-        "d_clear", "d_hazard", "d_CurbRamp", "d_Obstacle", "d_SurfaceProblem",
+        "d_clear", "d_hazard", "d_CurbRamp", "d_Obstacle", "d_SurfaceProblem", "d_no_obstacles",
         "n_desc", "abstain", "image_path",
     ]
     with open(csv_path, "w", newline="") as f:
@@ -850,30 +856,30 @@ def run_data2(args) -> None:
         "held_out_unused": list(DATA2_HELD_OUT),
         "fit_classes": list(DATA2_FIT),
         "test_classes": list(DATA2_TEST),
-        "excluded_from_fit_and_score": ["Crosswalk", "no_obstacles"],
+        "excluded_from_fit_and_score": ["Crosswalk"],
         "hazard_classes": list(DATA2_HAZARD),
         "clear_prototype_classes": list(DATA2_CLEAR),
-        "clear_test_negatives": ["CurbRamp", "no_obstacles_manual_collection"],
-        "null_prototype": "none; no_obstacles_manual_collection has 0 training images and pitt-val/pitt-test were not used to build one",
+        "clear_test_negatives": ["CurbRamp", "no_obstacles", "no_obstacles_manual_collection"],
+        "null_prototype": "original no_obstacles training images only; manual collection has 0 training images and is scored as a clear negative",
         "N": n_test,
         "H": h,
+        "no_obstacles_in_test": n_null,
         "manual_collection_in_test": n_manual,
         "prevalence": f"{h}/{n_test}",
         "abstain": abstain,
-        "score": "chi-square to the CurbRamp prototype minus min chi-square to {Obstacle, SurfaceProblem}",
+        "score": "min chi-square to {CurbRamp, no_obstacles} minus min chi-square to {Obstacle, SurfaceProblem}",
         "sort": "score descending; abstentions last; ties by filename ascending then pitt-test.csv row ascending",
         "top12_rounding": {
-            "expression": "0.12*348 = 41.76",
-            "floor": 41,
-            "ceil": 42,
-            "nearest": 42,
+            "expression": "0.12*368 = 44.16",
+            "floor": 44,
+            "ceil": 45,
+            "nearest": 44,
             "headline_k": 41,
         },
         "cuts": cuts,
         "class_counts": {split: DATA2_EXPECTED[split] for split in loaded},
         "not_opened": {
             "pitt-val": "entire split, including its 50 manual-collection images",
-            "original_no_obstacles": {split: DATA2_EXPECTED[split].get("no_obstacles", 0) for split in loaded},
             "Crosswalk": {split: DATA2_EXPECTED[split].get("Crosswalk", 0) for split in loaded},
         },
         "selection": selection,
@@ -890,7 +896,7 @@ def run_data2(args) -> None:
             "kmeans": "cv2.BOWKMeansTrainer attempts=1 PP centers, 20 iter, eps 0.1, RNG seed 0",
             "val_used_for_fit_or_score": False,
             "manual_collection_in_codebook_or_prototypes": False,
-            "original_no_obstacles_used": False,
+            "original_no_obstacles_used": True,
         },
         "bow_extractor_check": bow_check,
         "scores_csv": csv_path,

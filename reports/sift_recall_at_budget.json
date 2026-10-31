@@ -1,6 +1,6 @@
 {
   "cv2": "4.12.0",
-  "seconds": 20.6,
+  "seconds": 22.1,
   "data_dir": "/data/datasets/sidewalk-data-2",
   "layout": "sidewalk-data-2",
   "train_splits": [
@@ -14,42 +14,46 @@
   "fit_classes": [
     "CurbRamp",
     "Obstacle",
-    "SurfaceProblem"
+    "SurfaceProblem",
+    "no_obstacles"
   ],
   "test_classes": [
     "CurbRamp",
     "Obstacle",
     "SurfaceProblem",
+    "no_obstacles",
     "no_obstacles_manual_collection"
   ],
   "excluded_from_fit_and_score": [
-    "Crosswalk",
-    "no_obstacles"
+    "Crosswalk"
   ],
   "hazard_classes": [
     "Obstacle",
     "SurfaceProblem"
   ],
   "clear_prototype_classes": [
-    "CurbRamp"
+    "CurbRamp",
+    "no_obstacles"
   ],
   "clear_test_negatives": [
     "CurbRamp",
+    "no_obstacles",
     "no_obstacles_manual_collection"
   ],
-  "null_prototype": "none; no_obstacles_manual_collection has 0 training images and pitt-val/pitt-test were not used to build one",
-  "N": 348,
+  "null_prototype": "original no_obstacles training images only; manual collection has 0 training images and is scored as a clear negative",
+  "N": 368,
   "H": 146,
+  "no_obstacles_in_test": 20,
   "manual_collection_in_test": 50,
-  "prevalence": "146/348",
+  "prevalence": "146/368",
   "abstain": 0,
-  "score": "chi-square to the CurbRamp prototype minus min chi-square to {Obstacle, SurfaceProblem}",
+  "score": "min chi-square to {CurbRamp, no_obstacles} minus min chi-square to {Obstacle, SurfaceProblem}",
   "sort": "score descending; abstentions last; ties by filename ascending then pitt-test.csv row ascending",
   "top12_rounding": {
-    "expression": "0.12*348 = 41.76",
-    "floor": 41,
-    "ceil": 42,
-    "nearest": 42,
+    "expression": "0.12*368 = 44.16",
+    "floor": 44,
+    "ceil": 45,
+    "nearest": 44,
     "headline_k": 41
   },
   "cuts": {
@@ -59,20 +63,31 @@
       "fn": 124,
       "recall": "22/146",
       "precision": "22/41",
-      "random_expected_recall": "41/348",
-      "cutoff_score": 0.021842939407586304,
-      "next_score": 0.021679685210578392,
+      "random_expected_recall": "41/368",
+      "cutoff_score": 0.021975708982989506,
+      "next_score": 0.02192667677243526,
       "cutoff_tied_with_next": false
     },
-    "recall_at_42": {
-      "k": 42,
-      "tp": 22,
-      "fn": 124,
-      "recall": "22/146",
-      "precision": "22/42",
-      "random_expected_recall": "42/348",
-      "cutoff_score": 0.021679685210578392,
-      "next_score": 0.021251259175629422,
+    "recall_at_44": {
+      "k": 44,
+      "tp": 24,
+      "fn": 122,
+      "recall": "24/146",
+      "precision": "24/44",
+      "random_expected_recall": "44/368",
+      "cutoff_score": 0.021757455590940666,
+      "next_score": 0.021755632442145068,
+      "cutoff_tied_with_next": false
+    },
+    "recall_at_45": {
+      "k": 45,
+      "tp": 25,
+      "fn": 121,
+      "recall": "25/146",
+      "precision": "25/45",
+      "random_expected_recall": "45/368",
+      "cutoff_score": 0.021755632442145068,
+      "next_score": 0.021661096339746,
       "cutoff_tied_with_next": false
     }
   },
@@ -110,12 +125,6 @@
   },
   "not_opened": {
     "pitt-val": "entire split, including its 50 manual-collection images",
-    "original_no_obstacles": {
-      "other-cities-train": 349,
-      "pitt-train": 80,
-      "pitt-val": 31,
-      "pitt-test": 20
-    },
     "Crosswalk": {
       "other-cities-train": 1570,
       "pitt-train": 34,
@@ -162,6 +171,19 @@
       "seed": "sift-tagger-v1-SurfaceProblem",
       "pool_order": "other-cities-train.csv then pitt-train.csv, each in file order, then shuffle",
       "filename_sha256": "b55a01fd19738c3408576cc75519223e63b057151020eaa66442ed9fd4bd3fb3"
+    },
+    "no_obstacles": {
+      "n_train_available": 429,
+      "n_train_used": 429,
+      "used_all_train_images": true,
+      "n_codebook": 200,
+      "by_split": {
+        "other-cities-train": 349,
+        "pitt-train": 80
+      },
+      "seed": "sift-tagger-v1-no_obstacles",
+      "pool_order": "other-cities-train.csv then pitt-train.csv, each in file order, then shuffle",
+      "filename_sha256": "169c6bb66e8aab96837aa3fbbe102f5e27e9f19e1af0d1cb5942bbefc811b686"
     }
   },
   "method": {
@@ -177,12 +199,12 @@
     "kmeans": "cv2.BOWKMeansTrainer attempts=1 PP centers, 20 iter, eps 0.1, RNG seed 0",
     "val_used_for_fit_or_score": false,
     "manual_collection_in_codebook_or_prototypes": false,
-    "original_no_obstacles_used": false
+    "original_no_obstacles_used": true
   },
   "bow_extractor_check": {
     "images_checked": 5,
-    "max_abs_l1_diff": 0.02500000151339915
+    "max_abs_l1_diff": 0.025
   },
   "scores_csv": "reports/sift_recall_at_budget_scores.csv",
-  "scores_csv_vm": "/mnt/scratch/sift-tagger/out-data2/sift_recall_at_budget_scores.csv"
+  "scores_csv_vm": "/mnt/scratch/sift-tagger/out-data2-nulls/sift_recall_at_budget_scores.csv"
 }
