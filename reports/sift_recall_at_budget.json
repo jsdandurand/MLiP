@@ -1,6 +1,6 @@
 {
   "cv2": "4.12.0",
-  "seconds": 3.1,
+  "seconds": 3.6,
   "data_dir": "/data/datasets/proc-sidewalk-data-naive-merged-nulls",
   "layout": "sidewalk-data-2",
   "train_splits": [
@@ -12,80 +12,82 @@
     "pitt-val"
   ],
   "fit_classes": [
+    "Crosswalk",
     "CurbRamp",
     "Obstacle",
     "SurfaceProblem",
     "no_obstacles"
   ],
   "test_classes": [
+    "Crosswalk",
     "CurbRamp",
     "Obstacle",
     "SurfaceProblem",
     "no_obstacles"
   ],
-  "excluded_from_fit_and_score": [
-    "Crosswalk"
-  ],
+  "excluded_from_fit_and_score": [],
   "hazard_classes": [
     "Obstacle",
     "SurfaceProblem"
   ],
   "clear_prototype_classes": [
+    "Crosswalk",
     "CurbRamp",
     "no_obstacles"
   ],
   "clear_test_negatives": [
+    "Crosswalk",
     "CurbRamp",
     "no_obstacles"
   ],
   "null_prototype": "merged no_obstacles class; training prototype is the 429 original training nulls because manual screenshots exist only in pitt-val and pitt-test",
   "preprocess": "bicubic resize to 224x224; no_obstacles_manual_collection merged into no_obstacles",
-  "N": 368,
+  "N": 380,
   "H": 146,
   "no_obstacles_in_test": 70,
-  "prevalence": "146/368",
+  "prevalence": "146/380",
   "abstain": 0,
-  "score": "min chi-square to {CurbRamp, no_obstacles} minus min chi-square to {Obstacle, SurfaceProblem}",
+  "score": "min chi-square to {Crosswalk, CurbRamp, no_obstacles} minus min chi-square to {Obstacle, SurfaceProblem}",
   "sort": "score descending; abstentions last; ties by filename ascending then pitt-test.csv row ascending",
   "top12_rounding": {
-    "expression": "0.12*368 = 44.16",
-    "floor": 44,
-    "ceil": 45,
-    "nearest": 44,
+    "expression": "0.12*380 = 45.6",
+    "floor": 45,
+    "ceil": 46,
+    "nearest": 46,
     "headline_k": 41
   },
   "cuts": {
     "recall_at_41": {
       "k": 41,
-      "tp": 32,
-      "fn": 114,
-      "recall": "32/146",
-      "precision": "32/41",
-      "random_expected_recall": "41/368",
-      "cutoff_score": 0.056995230974872024,
-      "next_score": 0.05680287688316543,
-      "cutoff_tied_with_next": false
-    },
-    "recall_at_44": {
-      "k": 44,
-      "tp": 35,
-      "fn": 111,
-      "recall": "35/146",
-      "precision": "35/44",
-      "random_expected_recall": "44/368",
-      "cutoff_score": 0.05571223525047697,
-      "next_score": 0.05536729338210755,
+      "tp": 30,
+      "fn": 116,
+      "recall": "30/146",
+      "precision": "30/41",
+      "random_expected_recall": "41/380",
+      "cutoff_score": 0.05881347207616705,
+      "next_score": 0.05833605150347654,
       "cutoff_tied_with_next": false
     },
     "recall_at_45": {
       "k": 45,
+      "tp": 34,
+      "fn": 112,
+      "recall": "34/146",
+      "precision": "34/45",
+      "random_expected_recall": "45/380",
+      "cutoff_score": 0.057400081858324126,
+      "next_score": 0.057400081858324126,
+      "cutoff_tied_with_next": true
+    },
+    "recall_at_46": {
+      "k": 46,
       "tp": 35,
       "fn": 111,
       "recall": "35/146",
-      "precision": "35/45",
-      "random_expected_recall": "45/368",
-      "cutoff_score": 0.05536729338210755,
-      "next_score": 0.055124046706789276,
+      "precision": "35/46",
+      "random_expected_recall": "46/380",
+      "cutoff_score": 0.057400081858324126,
+      "next_score": 0.05737750687429677,
       "cutoff_tied_with_next": false
     }
   },
@@ -120,15 +122,22 @@
     }
   },
   "not_opened": {
-    "pitt-val": "entire split, including its 81 merged no_obstacles images",
-    "Crosswalk": {
-      "other-cities-train": 1570,
-      "pitt-train": 34,
-      "pitt-val": 11,
-      "pitt-test": 12
-    }
+    "pitt-val": "entire split, including its 81 merged no_obstacles images"
   },
   "selection": {
+    "Crosswalk": {
+      "n_train_available": 1604,
+      "n_train_used": 500,
+      "used_all_train_images": false,
+      "n_codebook": 200,
+      "by_split": {
+        "other-cities-train": 490,
+        "pitt-train": 10
+      },
+      "seed": "sift-tagger-v1-Crosswalk",
+      "pool_order": "other-cities-train.csv then pitt-train.csv, each in file order, then shuffle",
+      "filename_sha256": "77105cc3c4efd5e4642600b174955966b3618b7d97a52cd73a9dd5fbe030c5d9"
+    },
     "CurbRamp": {
       "n_train_available": 10553,
       "n_train_used": 500,
@@ -199,8 +208,8 @@
   },
   "bow_extractor_check": {
     "images_checked": 5,
-    "max_abs_l1_diff": 0.012500000756699575
+    "max_abs_l1_diff": 0.012500000791624173
   },
   "scores_csv": "reports/sift_recall_at_budget_scores.csv",
-  "scores_csv_vm": "/mnt/scratch/sift-tagger/out-merged-nulls/sift_recall_at_budget_scores.csv"
+  "scores_csv_vm": "/mnt/scratch/sift-tagger/out-merged-nulls-xwalk/sift_recall_at_budget_scores.csv"
 }
